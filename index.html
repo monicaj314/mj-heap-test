@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heap Analytics Tracking Test Harness</title>
+
+  <!-- Optional CDN font. Remove if you need zero external dependencies besides Heap. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!--
+    Heap Analytics snippet
+    Replace HEAP_APP_ID_HERE with the environment/app ID you want to test.
+  -->
+  <script type="text/javascript">
+    window.heap = window.heap || [];
+    heap.load = function(e, t) {
+      window.heap.appid = e;
+      window.heap.config = t = t || {};
+      var r = document.createElement("script");
+      r.type = "text/javascript";
+      r.async = true;
+      r.src = "https://cdn.heapanalytics.com/js/heap-" + e + ".js";
+      var a = document.getElementsByTagName("script")[0];
+      a.parentNode.insertBefore(r, a);
+      for (var n = function(e) {
+        return function() {
+          heap.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+        };
+      }, p = ["addEventProperties", "addUserProperties", "clearEventProperties", "identify", "resetIdentity", "removeEventProperty", "setEventProperties", "track", "unsetEventProperty"], o = 0; o < p.length; o++) {
+        heap[p[o]] = n(p[o]);
+      }
+    };
+
+    // TODO: Replace this placeholder with your Heap app/env ID before running a real test.
+    heap.load("HEAP_APP_ID_HERE", {
+      secureCookie: true
+    });
+  </script>
+
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-2: #f0f3ff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9deea;
+      --brand: #5b5bd6;
+      --brand-dark: #4444b8;
+      --accent: #16a085;
+      --danger: #c0392b;
+      --warning: #b7791f;
+      --shadow: 0 18px 50px rgba(20, 25, 45, 0.10);
+      --radius: 20px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(91, 91, 214, 0.18), transparent 32rem),
+        radial-gradient(circle at top right, rgba(22, 160, 133, 0.13), transparent 28rem),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    a {
+      color: var(--brand);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page-shell {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .hero-card,
+    .sticky-console,
+    .section-card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(217, 222, 234, 0.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 30px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -80px;
+      top: -80px;
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(91, 91, 214, 0.22), rgba(22, 160, 133, 0.18));
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--brand-dark);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .lead {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 17px;
+      margin: 0;
+    }
+
+    .status-grid {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--warning);
+      box-shadow: 0 0 0 4px rgba(183, 121, 31, 0.12);
+      flex: 0 0 auto;
+    }
+
+    .status-dot.ready {
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(22, 160, 133, 0.14);
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+      box-shadow: 0 0 0 4px rgba(192, 57, 43, 0.14);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .main-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .section-card {
+      padding: 22px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .method-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #eef7f4;
+      color: #0d7c67;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .muted {
+      color: var(--muted);
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .button-row,
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    button,
+    .button-link,
+    .cta-card {
+      border: 0;
+      border-radius: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 800;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    button:hover,
+    .button-link:hover,
+    .cta-card:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn {
+      padding: 12px 16px;
+      background: var(--brand);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(91, 91, 214, 0.22);
+    }
+
+    .btn.secondary {
+      background: #eef0f7;
+      color: var(--ink);
+      box-shadow: none;
+      border: 1px solid var(--line);
+    }
+
+    .btn.accent {
+      background: var(--accent);
+      box-shadow: 0 10px 22px rgba(22, 160, 133, 0.20);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      box-shadow: 0 10px 22px rgba(192, 57, 43, 0.18);
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      display: inline-grid;
+      place-items: center;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 20px;
+      box-shadow: none;
+    }
+
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 11px 14px;
+      background: #f3f5ff;
+      color: var(--brand-dark);
+      border: 1px solid rgba(91, 91, 214, 0.22);
+    }
+
+    .cta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .cta-card {
+      text-align: left;
+      padding: 18px;
+      background: linear-gradient(140deg, #fff, #f5f7ff);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      min-height: 120px;
+    }
+
+    .cta-card strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .cta-card span {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    form {
+      display: grid;
+      gap: 16px;
+    }
+
+    .form-step {
+      display: none;
+      padding: 18px;
+      border-radius: 16px;
+      background: #fafbff;
+      border: 1px solid var(--line);
+    }
+
+    .form-step.active {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    .option-stack {
+      display: grid;
+      gap: 9px;
+    }
+
+    .option-line {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .stepper {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .step-dot {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #dfe4f2;
+    }
+
+    .step-dot.active {
+      background: var(--brand);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .tab-button {
+      padding: 12px 14px;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+      border-radius: 12px 12px 0 0;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tab-button.active {
+      color: var(--brand-dark);
+      background: #f4f5ff;
+      border-bottom-color: var(--brand);
+    }
+
+    .tab-panel {
+      display: none;
+      padding: 16px;
+      border-radius: 16px;
+      background: #fbfcff;
+      border: 1px solid var(--line);
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 230px;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      z-index: 5;
+    }
+
+    .dropdown-menu.open {
+      display: grid;
+      gap: 4px;
+    }
+
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 11px 12px;
+      background: transparent;
+      color: var(--ink);
+      box-shadow: none;
+      font-weight: 700;
+    }
+
+    .dropdown-item:hover {
+      background: #f4f6fb;
+      transform: none;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .control-box {
+      padding: 16px;
+      border-radius: 16px;
+      background: #fbfcff;
+      border: 1px solid var(--line);
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 58px;
+      height: 32px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #d8deeb;
+      transition: 0.2s;
+      border-radius: 999px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 24px;
+      width: 24px;
+      left: 4px;
+      bottom: 4px;
+      background: white;
+      transition: 0.2s;
+      border-radius: 50%;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    .switch input:checked + .slider {
+      background: var(--accent);
+    }
+
+    .switch input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(16, 24, 40, 0.62);
+      z-index: 20;
+      padding: 24px;
+      place-items: center;
+    }
+
+    .modal-backdrop.open {
+      display: grid;
+    }
+
+    .modal {
+      width: min(560px, 100%);
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.26);
+      padding: 24px;
+      border: 1px solid var(--line);
+    }
+
+    .sticky-console {
+      position: sticky;
+      top: 20px;
+      overflow: hidden;
+    }
+
+    .console-header {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .console-body {
+      height: 620px;
+      overflow: auto;
+      padding: 12px;
+      background: #101828;
+      color: #e8ecf7;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .event-entry {
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.055);
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .event-entry strong {
+      color: #9ce8d4;
+    }
+
+    .small-btn {
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      background: #eef0f7;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+
+    .code-note {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #fff7e6;
+      border: 1px solid #f4d49c;
+      color: #6f4b0e;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sticky-console {
+        position: relative;
+        top: auto;
+      }
+
+      .console-body {
+        height: 420px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page-shell {
+        padding: 16px;
+      }
+
+      .field-grid,
+      .cta-grid,
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-card">
+        <span class="eyebrow">Heap QA Lab</span>
+        <h1 id="page-title">Tracking Test Harness</h1>
+        <p class="lead">
+          A self-contained playground for exercising Heap autocapture, manual <code>heap.track()</code>, identity,
+          user properties, global event properties, forms, tabs, modals, menus, sliders, toggles, and tiny click-creatures.
+        </p>
+        <div class="code-note">
+          Replace <strong>HEAP_APP_ID_HERE</strong> in the script snippet before testing against a real Heap environment.
+        </div>
+      </div>
+
+      <aside class="hero-card status-grid" aria-label="Heap status panel">
+        <div class="status-pill">
+          <div>
+            <strong>Heap Status</strong>
+            <p class="muted" id="heapStatusText">Checking window.heap...</p>
+          </div>
+          <span id="heapStatusDot" class="status-dot" aria-hidden="true"></span>
+        </div>
+        <div class="status-pill">
+          <div>
+            <strong>Manual Event Count</strong>
+            <p class="muted"><span id="eventCount">0</span> calls logged in this page session</p>
+          </div>
+          <span aria-hidden="true">📡</span>
+        </div>
+        <button
+          class="btn accent"
+          id="loginButton"
+          type="button"
+          data-test-id="login-as-test-user-button"
+          data-heap-name="Login as Test User"
+          data-section="identity-testing">
+          Login as Test User
+        </button>
+      </aside>
+    </section>
+
+    <div class="layout">
+      <div class="main-grid">
+        <section class="section-card" aria-labelledby="clickables-title">
+          <div class="section-header">
+            <div>
+              <h2 id="clickables-title">Clickable Elements</h2>
+              <p class="muted">Tests Heap autocapture plus explicit CTA click events.</p>
+            </div>
+            <span class="method-label">autocapture + heap.track()</span>
+          </div>
+
+          <div class="button-row">
+            <button
+              class="btn"
+              type="button"
+              data-test-id="primary-demo-button"
+              data-heap-name="Primary Demo Button"
+              data-cta-location="clickables-section"
+              onclick="trackCtaClick('Primary Demo Button', 'button', 'clickables-section')">
+              Primary Button
+            </button>
+
+            <button
+              class="btn secondary"
+              type="button"
+              data-test-id="secondary-demo-button"
+              data-heap-name="Secondary Demo Button"
+              data-cta-location="clickables-section"
+              onclick="trackCtaClick('Secondary Demo Button', 'button', 'clickables-section')">
+              Secondary Button
+            </button>
+
+            <a
+              href="#form-title"
+              class="button-link"
+              data-test-id="jump-to-form-link"
+              data-heap-name="Jump to Form Link"
+              data-link-destination="signup-form"
+              onclick="trackCtaClick('Jump to Form', 'link', 'clickables-section')">
+              Jump to Form
+            </a>
+
+            <button
+              class="icon-btn"
+              type="button"
+              aria-label="Favorite demo item"
+              data-test-id="favorite-icon-button"
+              data-heap-name="Favorite Icon Button"
+              data-icon-action="favorite"
+              onclick="trackCtaClick('Favorite Icon Button', 'icon_button', 'clickables-section')">
+              ★
+            </button>
+
+            <button
+              class="icon-btn"
+              type="button"
+              aria-label="Share demo item"
+              data-test-id="share-icon-button"
+              data-heap-name="Share Icon Button"
+              data-icon-action="share"
+              onclick="trackCtaClick('Share Icon Button', 'icon_button', 'clickables-section')">
+              ↗
+            </button>
+          </div>
+
+          <div class="cta-grid">
+            <button
+              class="cta-card"
+              type="button"
+              data-test-id="cta-start-trial"
+              data-heap-name="CTA Card Start Trial"
+              data-cta-tier="trial"
+              onclick="trackCtaClick('Start Trial CTA', 'custom_cta_card', 'cta-grid')">
+              <strong>Start Trial</strong>
+              <span>Custom-styled CTA with tier metadata.</span>
+            </button>
+            <button
+              class="cta-card"
+              type="button"
+              data-test-id="cta-book-demo"
+              data-heap-name="CTA Card Book Demo"
+              data-cta-tier="sales"
+              onclick="trackCtaClick('Book Demo CTA', 'custom_cta_card', 'cta-grid')">
+              <strong>Book Demo</strong>
+              <span>Great for validating click target text and hierarchy.</span>
+            </button>
+            <button
+              class="cta-card"
+              type="button"
+              data-test-id="cta-view-docs"
+              data-heap-name="CTA Card View Docs"
+              data-cta-tier="education"
+              onclick="trackCtaClick('View Docs CTA', 'custom_cta_card', 'cta-grid')">
+              <strong>View Docs</strong>
+              <span>Checks whether styled buttons remain friendly to autocapture.</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="section-card" aria-labelledby="form-title">
+          <div class="section-header">
+            <div>
+              <h2 id="form-title">Multi-Step Signup Form</h2>
+              <p class="muted">Tests input changes, selections, checkbox/radio interaction, step transitions, and submit.</p>
+            </div>
+            <span class="method-label">autocapture + heap.track()</span>
+          </div>
+
+          <div class="stepper" aria-hidden="true">
+            <span class="step-dot active" data-step-dot="1"></span>
+            <span class="step-dot" data-step-dot="2"></span>
+            <span class="step-dot" data-step-dot="3"></span>
+          </div>
+
+          <form id="signupForm" data-test-id="signup-form" data-heap-name="Signup Test Form">
+            <div class="form-step active" data-form-step="1">
+              <h3>Step 1: Profile</h3>
+              <div class="field-grid">
+                <label>
+                  Full name
+                  <input
+                    type="text"
+                    name="full_name"
+                    placeholder="Ada Lovelace"
+                    data-test-id="signup-full-name"
+                    data-heap-name="Signup Full Name Input" />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="ada@example.com"
+                    data-test-id="signup-email"
+                    data-heap-name="Signup Email Input" />
+                </label>
+              </div>
+              <div class="button-row">
+                <button class="btn" type="button" data-test-id="form-next-step-1" onclick="goToFormStep(2)">Next: Preferences</button>
+              </div>
+            </div>
+
+            <div class="form-step" data-form-step="2">
+              <h3>Step 2: Preferences</h3>
+              <div class="field-grid">
+                <label>
+                  Plan
+                  <select name="plan" data-test-id="signup-plan-select" data-heap-name="Signup Plan Select">
+                    <option value="free">Free</option>
+                    <option value="growth">Growth</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </label>
+                <label>
+                  Team size
+                  <select name="team_size" data-test-id="signup-team-size-select" data-heap-name="Signup Team Size Select">
+                    <option value="1-10">1-10</option>
+                    <option value="11-50">11-50</option>
+                    <option value="51-200">51-200</option>
+                    <option value="201+">201+</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="option-stack" role="group" aria-label="Use case options">
+                <strong>Primary use case</strong>
+                <label class="option-line">
+                  <input type="radio" name="use_case" value="product_analytics" data-test-id="use-case-product-analytics" /> Product analytics
+                </label>
+                <label class="option-line">
+                  <input type="radio" name="use_case" value="marketing_attribution" data-test-id="use-case-marketing-attribution" /> Marketing attribution
+                </label>
+                <label class="option-line">
+                  <input type="radio" name="use_case" value="qa_debugging" data-test-id="use-case-qa-debugging" /> QA/debugging
+                </label>
+              </div>
+
+              <div class="button-row">
+                <button class="btn secondary" type="button" data-test-id="form-back-step-2" onclick="goToFormStep(1)">Back</button>
+                <button class="btn" type="button" data-test-id="form-next-step-2" onclick="goToFormStep(3)">Next: Consent</button>
+              </div>
+            </div>
+
+            <div class="form-step" data-form-step="3">
+              <h3>Step 3: Consent & Notes</h3>
+              <label class="option-line">
+                <input type="checkbox" name="newsletter" value="yes" data-test-id="signup-newsletter-checkbox" /> Subscribe to product updates
+              </label>
+              <label class="option-line">
+                <input type="checkbox" name="terms" value="accepted" data-test-id="signup-terms-checkbox" /> Accept test terms
+              </label>
+              <label>
+                Notes
+                <textarea name="notes" placeholder="Testing form fields..." data-test-id="signup-notes" data-heap-name="Signup Notes Textarea"></textarea>
+              </label>
+              <div class="button-row">
+                <button class="btn secondary" type="button" data-test-id="form-back-step-3" onclick="goToFormStep(2)">Back</button>
+                <button class="btn accent" type="submit" data-test-id="signup-submit-button" data-heap-name="Signup Submit Button">Submit Signup Form</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section class="section-card" aria-labelledby="tabs-title">
+          <div class="section-header">
+            <div>
+              <h2 id="tabs-title">Tabbed Navigation</h2>
+              <p class="muted">Tests tab clicks and content-panel view-style events.</p>
+            </div>
+            <span class="method-label">heap.track()</span>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Tracking tabs">
+            <button class="tab-button active" role="tab" aria-selected="true" data-tab="overview" data-test-id="tab-overview" onclick="switchTab('overview')">Overview</button>
+            <button class="tab-button" role="tab" aria-selected="false" data-tab="autocapture" data-test-id="tab-autocapture" onclick="switchTab('autocapture')">Autocapture</button>
+            <button class="tab-button" role="tab" aria-selected="false" data-tab="manual" data-test-id="tab-manual" onclick="switchTab('manual')">Manual Events</button>
+            <button class="tab-button" role="tab" aria-selected="false" data-tab="identity" data-test-id="tab-identity" onclick="switchTab('identity')">Identity</button>
+          </div>
+
+          <div class="tab-panel active" data-tab-panel="overview">
+            <h3>Overview Panel</h3>
+            <p class="muted">Use this panel to verify initial tab state and default view behavior.</p>
+          </div>
+          <div class="tab-panel" data-tab-panel="autocapture">
+            <h3>Autocapture Panel</h3>
+            <p class="muted">Click around the harness to validate target text, hierarchy, and data attributes in Heap.</p>
+          </div>
+          <div class="tab-panel" data-tab-panel="manual">
+            <h3>Manual Events Panel</h3>
+            <p class="muted">Manual events are mirrored in the console on the right for easy QA comparison.</p>
+          </div>
+          <div class="tab-panel" data-tab-panel="identity">
+            <h3>Identity Panel</h3>
+            <p class="muted">Use the Login button to test <code>heap.identify()</code> and <code>heap.addUserProperties()</code>.</p>
+          </div>
+        </section>
+
+        <section class="section-card" aria-labelledby="components-title">
+          <div class="section-header">
+            <div>
+              <h2 id="components-title">Modal, Dropdown, Slider & Toggle</h2>
+              <p class="muted">Tests overlay interactions, menu selections, range input changes, and switch changes.</p>
+            </div>
+            <span class="method-label">autocapture + heap.track()</span>
+          </div>
+
+          <div class="button-row">
+            <button
+              class="btn"
+              type="button"
+              data-test-id="open-modal-button"
+              data-heap-name="Open Demo Modal Button"
+              onclick="openModal()">
+              Open Modal
+            </button>
+
+            <div class="dropdown">
+              <button
+                class="btn secondary"
+                type="button"
+                id="dropdownToggle"
+                data-test-id="dropdown-toggle-button"
+                data-heap-name="Dropdown Toggle Button"
+                onclick="toggleDropdown()">
+                Open Dropdown ▾
+              </button>
+              <div class="dropdown-menu" id="dropdownMenu" role="menu" aria-labelledby="dropdownToggle">
+                <button class="dropdown-item" type="button" role="menuitem" data-test-id="dropdown-export-csv" onclick="selectDropdownItem('Export CSV')">Export CSV</button>
+                <button class="dropdown-item" type="button" role="menuitem" data-test-id="dropdown-copy-link" onclick="selectDropdownItem('Copy Link')">Copy Link</button>
+                <button class="dropdown-item" type="button" role="menuitem" data-test-id="dropdown-send-report" onclick="selectDropdownItem('Send Report')">Send Report</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-grid">
+            <div class="control-box">
+              <h3>Range Slider</h3>
+              <p class="muted">Current value: <strong id="rangeValue">50</strong></p>
+              <input
+                id="rangeInput"
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                data-test-id="engagement-range-slider"
+                data-heap-name="Engagement Range Slider" />
+            </div>
+
+            <div class="control-box">
+              <h3>Toggle Switch</h3>
+              <div class="switch-row">
+                <p class="muted">Enable advanced tracking mode</p>
+                <label class="switch" aria-label="Enable advanced tracking mode">
+                  <input id="advancedToggle" type="checkbox" data-test-id="advanced-tracking-toggle" data-heap-name="Advanced Tracking Toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="sticky-console" aria-labelledby="console-title">
+        <div class="console-header">
+          <div>
+            <h2 id="console-title">Manual Event Log</h2>
+            <p class="muted">Mirrors every wrapped <code>heap.track()</code> call.</p>
+          </div>
+          <button class="small-btn" type="button" data-test-id="clear-event-log" onclick="clearEventLog()">Clear</button>
+        </div>
+        <div class="console-body" id="eventLog" aria-live="polite">
+          <div class="event-entry"><strong>Ready.</strong> Manual Heap events will appear here.</div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="demoModal" role="dialog" aria-modal="true" aria-labelledby="modal-title" data-test-id="demo-modal-backdrop">
+    <div class="modal" data-test-id="demo-modal-content">
+      <h2 id="modal-title">Demo Modal</h2>
+      <p class="muted">Use this overlay to test modal open, close button, backdrop close, and CTA clicks inside a dialog.</p>
+      <div class="button-row" style="margin-top: 18px;">
+        <button class="btn accent" type="button" data-test-id="modal-confirm-button" onclick="trackCtaClick('Modal Confirm', 'button', 'demo-modal')">Confirm Action</button>
+        <button class="btn secondary" type="button" data-test-id="modal-close-button" onclick="closeModal('close_button')">Close Modal</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const APP_ID_PLACEHOLDER = "HEAP_APP_ID_HERE";
+    const eventLogEl = document.getElementById("eventLog");
+    const eventCountEl = document.getElementById("eventCount");
+    const heapStatusText = document.getElementById("heapStatusText");
+    const heapStatusDot = document.getElementById("heapStatusDot");
+    let manualEventCount = 0;
+    let currentFormStep = 1;
+
+    /**
+     * Wrapper for heap.track() so the page can also display a local QA log.
+     * This does not alter Heap behavior; it only mirrors the call in the UI.
+     */
+    function trackHeapEvent(eventName, properties = {}) {
+      const enrichedProperties = {
+        ...properties,
+        harness_name: "heap_tracking_test_harness",
+        harness_version: "1.0.0",
+        page_path: window.location.pathname,
+        page_title: document.title,
+        logged_at_iso: new Date().toISOString()
+      };
+
+      if (window.heap && typeof window.heap.track === "function") {
+        heap.track(eventName, enrichedProperties);
+      }
+
+      logManualEvent(eventName, enrichedProperties);
+    }
+
+    function logManualEvent(eventName, properties) {
+      manualEventCount += 1;
+      eventCountEl.textContent = String(manualEventCount);
+
+      const entry = document.createElement("div");
+      entry.className = "event-entry";
+      entry.innerHTML = `<strong>${escapeHtml(eventName)}</strong>\n${escapeHtml(JSON.stringify(properties, null, 2))}`;
+      eventLogEl.prepend(entry);
+    }
+
+    function clearEventLog() {
+      eventLogEl.innerHTML = '<div class="event-entry"><strong>Cleared.</strong> New manual Heap events will appear here.</div>';
+      manualEventCount = 0;
+      eventCountEl.textContent = "0";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    /**
+     * Set global event properties on page load.
+     * These properties should be attached to later Heap events in this session/page context.
+     */
+    function setGlobalEventProperties() {
+      const globalProperties = {
+        test_harness: true,
+        qa_session_id: crypto.randomUUID ? crypto.randomUUID() : `qa-${Date.now()}`,
+        environment_label: "local_or_staging",
+        page_category: "analytics_test_harness"
+      };
+
+      if (window.heap && typeof window.heap.addEventProperties === "function") {
+        heap.addEventProperties(globalProperties);
+      }
+
+      logManualEvent("heap.addEventProperties called", globalProperties);
+    }
+
+    /**
+     * Demo identity workflow: identify user and attach user-level properties.
+     */
+    function identifyTestUser() {
+      const testUserId = "demo-user-12345";
+      const userProperties = {
+        plan: "growth",
+        role: "qa_engineer",
+        signup_date: "2026-05-22",
+        test_account: true
+      };
+
+      if (window.heap && typeof window.heap.identify === "function") {
+        heap.identify(testUserId);
+      }
+
+      if (window.heap && typeof window.heap.addUserProperties === "function") {
+        heap.addUserProperties(userProperties);
+      }
+
+      logManualEvent("heap.identify called", { identity: testUserId });
+      logManualEvent("heap.addUserProperties called", userProperties);
+
+      trackHeapEvent("Test User Login", {
+        action: "identify",
+        identity: testUserId,
+        source: "login_button"
+      });
+    }
+
+    function trackCtaClick(label, type, location) {
+      trackHeapEvent("CTA Clicked", {
+        action: "click",
+        cta_label: label,
+        cta_type: type,
+        cta_location: location
+      });
+    }
+
+    function goToFormStep(step) {
+      document.querySelectorAll("[data-form-step]").forEach((el) => {
+        el.classList.toggle("active", Number(el.dataset.formStep) === step);
+      });
+
+      document.querySelectorAll("[data-step-dot]").forEach((el) => {
+        el.classList.toggle("active", Number(el.dataset.stepDot) <= step);
+      });
+
+      trackHeapEvent("Signup Form Step Changed", {
+        action: "step_change",
+        form_name: "signup",
+        previous_step: currentFormStep,
+        step
+      });
+
+      currentFormStep = step;
+    }
+
+    function handleSignupSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      const selectedUseCase = formData.get("use_case") || "not_selected";
+
+      trackHeapEvent("Signup Form Submitted", {
+        action: "submit",
+        form_name: "signup",
+        step: currentFormStep,
+        plan: formData.get("plan") || "not_selected",
+        team_size: formData.get("team_size") || "not_selected",
+        use_case: selectedUseCase,
+        newsletter_opt_in: formData.get("newsletter") === "yes",
+        terms_accepted: formData.get("terms") === "accepted",
+        has_notes: Boolean((formData.get("notes") || "").trim())
+      });
+
+      alert("Signup form submitted. Check the manual event log and Heap Live View.");
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        const isActive = button.dataset.tab === tabName;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-selected", String(isActive));
+      });
+
+      document.querySelectorAll(".tab-panel").forEach((panel) => {
+        panel.classList.toggle("active", panel.dataset.tabPanel === tabName);
+      });
+
+      trackHeapEvent("Tab Switched", {
+        action: "switch_tab",
+        tab_name: tabName,
+        component_name: "tracking_test_tabs"
+      });
+
+      trackHeapEvent("Tab Panel Viewed", {
+        action: "view",
+        panel_name: tabName,
+        component_name: "tracking_test_tabs"
+      });
+    }
+
+    function openModal() {
+      document.getElementById("demoModal").classList.add("open");
+      trackHeapEvent("Modal Opened", {
+        action: "open",
+        modal_name: "demo_modal",
+        trigger: "open_modal_button"
+      });
+    }
+
+    function closeModal(trigger) {
+      document.getElementById("demoModal").classList.remove("open");
+      trackHeapEvent("Modal Closed", {
+        action: "close",
+        modal_name: "demo_modal",
+        trigger
+      });
+    }
+
+    function toggleDropdown() {
+      const menu = document.getElementById("dropdownMenu");
+      const willOpen = !menu.classList.contains("open");
+      menu.classList.toggle("open", willOpen);
+
+      trackHeapEvent("Dropdown Toggled", {
+        action: willOpen ? "open" : "close",
+        component_name: "actions_dropdown"
+      });
+    }
+
+    function selectDropdownItem(itemLabel) {
+      document.getElementById("dropdownMenu").classList.remove("open");
+      trackHeapEvent("Dropdown Item Selected", {
+        action: "select",
+        component_name: "actions_dropdown",
+        item_label: itemLabel
+      });
+    }
+
+    function updateHeapStatus() {
+      const hasHeap = Boolean(window.heap);
+      const hasPlaceholderAppId = window.heap && window.heap.appid === APP_ID_PLACEHOLDER;
+      const hasTrack = window.heap && typeof window.heap.track === "function";
+
+      if (!hasHeap) {
+        heapStatusText.textContent = "window.heap not found";
+        heapStatusDot.className = "status-dot error";
+        return;
+      }
+
+      if (hasPlaceholderAppId) {
+        heapStatusText.textContent = "Snippet initialized with placeholder APP_ID";
+        heapStatusDot.className = "status-dot";
+        return;
+      }
+
+      if (hasTrack) {
+        heapStatusText.textContent = `window.heap ready for app ${window.heap.appid || "unknown"}`;
+        heapStatusDot.className = "status-dot ready";
+        return;
+      }
+
+      heapStatusText.textContent = "window.heap exists; waiting for methods";
+      heapStatusDot.className = "status-dot";
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("loginButton").addEventListener("click", identifyTestUser);
+      document.getElementById("signupForm").addEventListener("submit", handleSignupSubmit);
+
+      document.getElementById("demoModal").addEventListener("click", (event) => {
+        if (event.target.id === "demoModal") {
+          closeModal("backdrop_click");
+        }
+      });
+
+      document.getElementById("rangeInput").addEventListener("change", (event) => {
+        const value = Number(event.target.value);
+        document.getElementById("rangeValue").textContent = String(value);
+        trackHeapEvent("Range Slider Changed", {
+          action: "change",
+          component_name: "engagement_range_slider",
+          value
+        });
+      });
+
+      document.getElementById("rangeInput").addEventListener("input", (event) => {
+        document.getElementById("rangeValue").textContent = event.target.value;
+      });
+
+      document.getElementById("advancedToggle").addEventListener("change", (event) => {
+        trackHeapEvent("Toggle Changed", {
+          action: "change",
+          component_name: "advanced_tracking_toggle",
+          enabled: event.target.checked
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && document.getElementById("demoModal").classList.contains("open")) {
+          closeModal("escape_key");
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        const dropdown = document.querySelector(".dropdown");
+        const menu = document.getElementById("dropdownMenu");
+        if (dropdown && menu.classList.contains("open") && !dropdown.contains(event.target)) {
+          menu.classList.remove("open");
+          trackHeapEvent("Dropdown Toggled", {
+            action: "close",
+            component_name: "actions_dropdown",
+            trigger: "outside_click"
+          });
+        }
+      });
+
+      updateHeapStatus();
+      setGlobalEventProperties();
+      trackHeapEvent("Tracking Harness Loaded", {
+        action: "page_load",
+        has_placeholder_app_id: window.heap && window.heap.appid === APP_ID_PLACEHOLDER
+      });
+
+      // Poll briefly because the remote Heap library loads asynchronously.
+      window.setInterval(updateHeapStatus, 1500);
+    });
+  </script>
+</body>
+</html>
