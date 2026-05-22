@@ -11,33 +11,81 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!--
-    Heap Analytics snippet
-    Replace HEAP_APP_ID_HERE with the environment/app ID you want to test.
+    Heap Analytics dynamic loader
+    Replace 578890601 with the environment/app ID you want to test.
+
+    This harness supports two mutually exclusive loader modes:
+    - Heap4: Heap4 heap-js snippet loaded from cdn.heapanalytics.com
+    - heap5: Heap 5 snippet loaded from cdn.us.heap-api.com/config/{envId}/heap_config.js
+
+    The selected mode is stored in localStorage and applied on page load.
   -->
   <script type="text/javascript">
-    window.heap = window.heap || [];
-    heap.load = function(e, t) {
-      window.heap.appid = e;
-      window.heap.config = t = t || {};
-      var r = document.createElement("script");
-      r.type = "text/javascript";
-      r.async = true;
-      r.src = "https://cdn.heapanalytics.com/js/heap-" + e + ".js";
-      var a = document.getElementsByTagName("script")[0];
-      a.parentNode.insertBefore(r, a);
-      for (var n = function(e) {
-        return function() {
-          heap.push([e].concat(Array.prototype.slice.call(arguments, 0)));
-        };
-      }, p = ["addEventProperties", "addUserProperties", "clearEventProperties", "identify", "resetIdentity", "removeEventProperty", "setEventProperties", "track", "unsetEventProperty"], o = 0; o < p.length; o++) {
-        heap[p[o]] = n(p[o]);
-      }
-    };
+    const HEAP_APP_ID = "578890601";
+    const HEAP_MODE_STORAGE_KEY = "heap_tracking_harness_loader_mode";
+    const HEAP_LOADER_MODE = localStorage.getItem(HEAP_MODE_STORAGE_KEY) || "Heap4";
 
-    // TODO: Replace this placeholder with your Heap app/env ID before running a real test.
-    heap.load("HEAP_APP_ID_HERE", {
-      secureCookie: true
-    });
+    function loadHeapHeap4(appId) {
+      window.heap = window.heap || [];
+      heap.load = function(e, t) {
+        window.heap.appid = e;
+        window.heap.config = t = t || {};
+        var r = document.createElement("script");
+        r.type = "text/javascript";
+        r.async = true;
+        r.src = "https://cdn.heapanalytics.com/js/heap-" + e + ".js";
+        var a = document.getElementsByTagName("script")[0];
+        a.parentNode.insertBefore(r, a);
+        for (var n = function(e) {
+          return function() {
+            heap.push([e].concat(Array.prototype.slice.call(arguments, 0)));
+          };
+        }, p = ["addEventProperties", "addUserProperties", "clearEventProperties", "identify", "resetIdentity", "removeEventProperty", "setEventProperties", "track", "unsetEventProperty"], o = 0; o < p.length; o++) {
+          heap[p[o]] = n(p[o]);
+        }
+      };
+
+      heap.load(appId, {
+        secureCookie: true
+      });
+    }
+
+    function loadHeap5(envId) {
+      window.heapReadyCb = window.heapReadyCb || [];
+      window.heap = window.heap || [];
+      heap.load = function(e, t) {
+        window.heap.envId = e;
+        window.heap.clientConfig = t = t || {};
+        window.heap.clientConfig.shouldFetchServerConfig = false;
+        var a = document.createElement("script");
+        a.type = "text/javascript";
+        a.async = true;
+        a.src = "https://cdn.us.heap-api.com/config/" + e + "/heap_config.js";
+        var r = document.getElementsByTagName("script")[0];
+        r.parentNode.insertBefore(a, r);
+        var n = ["init", "startTracking", "stopTracking", "track", "resetIdentity", "identify", "identifyHashed", "getSessionId", "getUserId", "getIdentity", "addUserProperties", "addEventProperties", "removeEventProperty", "clearEventProperties", "addAccountProperties", "addAdapter", "addTransformer", "addTransformerFn", "onReady", "addPageviewProperties", "removePageviewProperty", "clearPageviewProperties", "trackPageview"];
+        var i = function(e) {
+          return function() {
+            var t = Array.prototype.slice.call(arguments, 0);
+            window.heapReadyCb.push({
+              name: e,
+              fn: function() {
+                heap[e] && heap[e].apply(heap, t);
+              }
+            });
+          };
+        };
+        for (var p = 0; p < n.length; p++) heap[n[p]] = i(n[p]);
+      };
+
+      heap.load(envId);
+    }
+
+    if (HEAP_LOADER_MODE === "heap5") {
+      loadHeap5(HEAP_APP_ID);
+    } else {
+      loadHeapHeap4(HEAP_APP_ID);
+    }
   </script>
 
   <style>
@@ -682,9 +730,11 @@
         <p class="lead">
           A self-contained playground for exercising Heap autocapture, manual <code>heap.track()</code>, identity,
           user properties, global event properties, forms, tabs, modals, menus, sliders, toggles, and tiny click-creatures.
+          Use the loader mode switch to test either Heap Heap4 JS or Heap 5.
         </p>
         <div class="code-note">
-          Replace <strong>HEAP_APP_ID_HERE</strong> in the script snippet before testing against a real Heap environment.
+          Replace <strong>578890601</strong> in the dynamic loader before testing against a real Heap environment.
+          Switching between Heap4 JS and Heap 5 reloads the page so only one loader initializes per test run.
         </div>
       </div>
 
@@ -703,6 +753,18 @@
           </div>
           <span aria-hidden="true">📡</span>
         </div>
+
+        <div class="status-pill">
+          <div>
+            <strong>Heap Loader Mode</strong>
+            <p class="muted">Current mode: <span id="heapModeLabel">Heap4 JS</span></p>
+          </div>
+          <label class="switch" aria-label="Toggle Heap 5 loader mode">
+            <input id="heapModeToggle" type="checkbox" data-test-id="heap-loader-mode-toggle" data-heap-name="Heap Loader Mode Toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
         <button
           class="btn accent"
           id="loginButton"
@@ -1044,13 +1106,40 @@
   </div>
 
   <script>
-    const APP_ID_PLACEHOLDER = "HEAP_APP_ID_HERE";
+    const APP_ID_PLACEHOLDER = HEAP_APP_ID;
     const eventLogEl = document.getElementById("eventLog");
     const eventCountEl = document.getElementById("eventCount");
     const heapStatusText = document.getElementById("heapStatusText");
     const heapStatusDot = document.getElementById("heapStatusDot");
     let manualEventCount = 0;
     let currentFormStep = 1;
+
+    function getHeapModeLabel(mode) {
+      return mode === "heap5" ? "Heap 5" : "Heap4 JS";
+    }
+
+    function initializeHeapModeControls() {
+      const modeToggle = document.getElementById("heapModeToggle");
+      const modeLabel = document.getElementById("heapModeLabel");
+      const isHeap5 = HEAP_LOADER_MODE === "heap5";
+
+      modeToggle.checked = isHeap5;
+      modeLabel.textContent = getHeapModeLabel(HEAP_LOADER_MODE);
+
+      modeToggle.addEventListener("change", (event) => {
+        const nextMode = event.target.checked ? "heap5" : "Heap4";
+        localStorage.setItem(HEAP_MODE_STORAGE_KEY, nextMode);
+
+        // This local log is only visible briefly before reload, but useful if reload is blocked in debugging.
+        logManualEvent("Heap Loader Mode Changed", {
+          previous_mode: HEAP_LOADER_MODE,
+          next_mode: nextMode,
+          action: "reload_required"
+        });
+
+        window.location.reload();
+      });
+    }
 
     /**
      * Wrapper for heap.track() so the page can also display a local QA log.
@@ -1259,7 +1348,8 @@
 
     function updateHeapStatus() {
       const hasHeap = Boolean(window.heap);
-      const hasPlaceholderAppId = window.heap && window.heap.appid === APP_ID_PLACEHOLDER;
+      const hasPlaceholderAppId = HEAP_APP_ID === APP_ID_PLACEHOLDER;
+      const activeId = HEAP_LOADER_MODE === "heap5" ? window.heap && window.heap.envId : window.heap && window.heap.appid;
       const hasTrack = window.heap && typeof window.heap.track === "function";
 
       if (!hasHeap) {
@@ -1269,22 +1359,23 @@
       }
 
       if (hasPlaceholderAppId) {
-        heapStatusText.textContent = "Snippet initialized with placeholder APP_ID";
+        heapStatusText.textContent = `${getHeapModeLabel(HEAP_LOADER_MODE)} initialized with placeholder APP_ID`;
         heapStatusDot.className = "status-dot";
         return;
       }
 
       if (hasTrack) {
-        heapStatusText.textContent = `window.heap ready for app ${window.heap.appid || "unknown"}`;
+        heapStatusText.textContent = `${getHeapModeLabel(HEAP_LOADER_MODE)} ready for ${activeId || "unknown app/env"}`;
         heapStatusDot.className = "status-dot ready";
         return;
       }
 
-      heapStatusText.textContent = "window.heap exists; waiting for methods";
+      heapStatusText.textContent = `${getHeapModeLabel(HEAP_LOADER_MODE)} exists; waiting for methods`;
       heapStatusDot.className = "status-dot";
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+      initializeHeapModeControls();
       document.getElementById("loginButton").addEventListener("click", identifyTestUser);
       document.getElementById("signupForm").addEventListener("submit", handleSignupSubmit);
 
@@ -1339,7 +1430,9 @@
       setGlobalEventProperties();
       trackHeapEvent("Tracking Harness Loaded", {
         action: "page_load",
-        has_placeholder_app_id: window.heap && window.heap.appid === APP_ID_PLACEHOLDER
+        heap_loader_mode: HEAP_LOADER_MODE,
+        heap_loader_label: getHeapModeLabel(HEAP_LOADER_MODE),
+        has_placeholder_app_id: HEAP_APP_ID === APP_ID_PLACEHOLDER
       });
 
       // Poll briefly because the remote Heap library loads asynchronously.
